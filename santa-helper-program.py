@@ -32,6 +32,7 @@ def initializeList():
         name, email = line.split(',')
         names.append(name.strip())
         emails.append(email.strip())
+    f.close()
     return
 
 def selectNames(count):
@@ -39,9 +40,12 @@ def selectNames(count):
     pickedNames = []
     pickingFor = 0
     while(pickedNames.__len__() < count):
-        pickedName = random.choice(hatOfNames)
-        if(pickedName == pickingFor):
-            pickedName = hatOfNames[(hatOfNames.index(pickedName) + 1) % hatOfNames.__len__()]
+        if(pickingFor == count - 2 and pickingFor + 1 in hatOfNames):
+            pickedName = pickingFor + 1
+        else:
+            pickedName = random.choice(hatOfNames)
+            if(pickedName == pickingFor):
+                pickedName = hatOfNames[(hatOfNames.index(pickedName) + 1) % hatOfNames.__len__()]
         pickedNames.append((pickingFor, pickedName))
         hatOfNames.pop(hatOfNames.index(pickedName))
         pickingFor += 1
@@ -65,7 +69,8 @@ def createEmails(assignments):
 
 def main():
     initializeList()
-    createEmails(selectNames(names.__len__()))
+    for x in range(100):
+        createEmails(selectNames(names.__len__()))
     return
 
 
