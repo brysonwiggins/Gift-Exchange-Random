@@ -1,7 +1,21 @@
 import configparser
-import smtplib, ssl
+import httplib2
+import os
+import oauth2client
+from oauth2client import client, tools, file
+import base64
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from apiclient import errors, discovery
+import mimetypes
+from email.mime.image import MIMEImage
+from email.mime.audio import MIMEAudio
+from email.mime.base import MIMEBase
 import random
 
+SCOPES = 'https://www.googleapis.com/auth/gmail.send'
+CLIENT_SECRET_FILE = 'credentials.json'
+APPLICATION_NAME = 'Santa Helper Program'
 masterEmail = ""
 masterPass = ""
 listFile = ""
@@ -15,18 +29,49 @@ class Mail:
         self.smtp_server_domain_name = "smtp.gmail.com"
         self.sender_mail = masterEmail
         self.password = masterPass
+        self.subject = "Gift Exchange Name - TOP SECRET"
 
-    def send(self, email, subject, content):
-        ssl_context = ssl.create_default_context()
-        service = smtplib.SMTP_SSL(self.smtp_server_domain_name, self.port, context=ssl_context)
-        service.login(self.sender_mail, self.password)
-        
-        service.sendmail(self.sender_mail, email, f"To: {email}\r\nSubject: {subject}\r\n{content}")
-        service.quit()
+    def send(self, email, content):
+        credentials = self.get_credentials()
+        http = credentials.authorize(httplib2.Http())
+        service = discovery.build('gmail', 'v1', http=http)
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = self.subject
+        msg['From'] = self.sender_mail
+        msg['To'] = email
+        msg.attach(MIMEText(content, 'plain'))
+        # Can add HTML to email (experiement in future)
+        # msg.attach(MIMEText(content, 'html'))
+        encodedMsg = {'raw': base64.urlsafe_b64encode(msg.as_string().encode()).decode()}
+
+        try:
+            message = (service.users().messages().send(userId="me", body=encodedMsg).execute())
+            print('Message Id: %s' % message['id'])
+            return message
+        except errors.HttpError as error:
+            print('An error occurred: %s' % error)
+            return "Error"
+
+    def get_credentials(self):
+        home_dir = os.path.expanduser('~')
+        credential_dir = os.path.join(home_dir, '.credentials')
+        if not os.path.exists(credential_dir):
+            os.makedirs(credential_dir)
+        credential_path = os.path.join(credential_dir,
+                                    'gmail-python-email-send.json')
+        store = oauth2client.file.Storage(credential_path)
+        credentials = store.get()
+        if not credentials or credentials.invalid:
+            flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
+            flow.user_agent = APPLICATION_NAME
+            credentials = tools.run_flow(flow, store)
+            print('Storing credentials to ' + credential_path)
+        return credentials
 
 
 def initializeList():
-    with open('exchangeList.txt') as f:
+    with open(listFile) as f:
         lines = f.readlines()
     for line in lines:
         name, email = line.split(',')
@@ -57,20 +102,18 @@ def createEmails(assignments):
         senderName = names[assignment[0]]
         senderEmail = emails[assignment[0]]
         recieverName = names[assignment[1]]
-        subject = "Gift Exchange Name - TOP SECRET"
         body = """HO-HO-HO MERRY CHRISTMAS {sender}!!!!!!\n
         I am emailing you to let you know that this year you get to give a gift to {reciever}!!!!!\n
-        Remember to keep this a secret to make it a suprise!\n
+        Remember to keep this a secret to make it a surprise!\n
         With lots of love:
         \tSanta's helper program""".format(sender=senderName.upper(), reciever=recieverName.upper())
-        debug.write(senderName + " drew " + recieverName + '\n')    
-        mail.send(senderEmail, subject, body)
+        debug.write(senderName + " -> " + recieverName + '\n')    
+        mail.send(senderEmail, body)
     return
 
 def main():
     initializeList()
-    for x in range(100):
-        createEmails(selectNames(names.__len__()))
+    createEmails(selectNames(names.__len__()))
     return
 
 

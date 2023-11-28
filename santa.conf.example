@@ -1,4 +1,4 @@
 [email data]
 masterEmail = "email@domain.com"
 masterPass = "PasswordToEmail"
-listFile = "exchangeList.txt"
+listFile = exchangeList.txt
