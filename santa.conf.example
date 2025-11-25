@@ -2,3 +2,5 @@
 masterEmail = "email@domain.com"
 masterPass = "PasswordToEmail"
 listFile = exchangeList.txt
+historyFile = history.csv
+
