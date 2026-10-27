@@ -12,8 +12,10 @@ from email.mime.image import MIMEImage
 from email.mime.audio import MIMEAudio
 from email.mime.base import MIMEBase
 import random
+import argparse
 from collections import Counter
 from datetime import datetime
+import santa_db
 
 SCOPES = 'https://www.googleapis.com/auth/gmail.send'
 CLIENT_SECRET_FILE = 'credentials.json'
@@ -22,6 +24,8 @@ masterEmail = ""
 masterPass = ""
 listFile = ""
 historyFile = ""
+siteUrl = ""
+dbFile = ""
 names = []
 emails = []
 historyCounts = Counter()
@@ -35,13 +39,13 @@ class Mail:
         self.password = masterPass
         self.subject = "Gift Exchange Name - TOP SECRET"
 
-    def send(self, email, content):
+    def send(self, email, content, subject=None):
         credentials = self.get_credentials()
         http = credentials.authorize(httplib2.Http())
         service = discovery.build('gmail', 'v1', http=http)
 
         msg = MIMEMultipart('alternative')
-        msg['Subject'] = self.subject
+        msg['Subject'] = subject or self.subject
         msg['From'] = self.sender_mail
         msg['To'] = email
         msg.attach(MIMEText(content, 'plain'))
@@ -153,23 +157,66 @@ def recordHistory(assignments):
             recipient = names[assignment[1]]
             f.write('{year},{giver},{recipient}\n'.format(year=year, giver=giver, recipient=recipient))
 
+def ideaListsEnabled():
+    return siteUrl != "" and dbFile != ""
+
+def syncIdeaLists():
+    santa_db.sync_people(dbFile, names, emails)
+
+def viewLink(name):
+    person = santa_db.get_person_by_name(dbFile, name)
+    return '{site}/ideas/{slug}'.format(site=siteUrl.rstrip('/'), slug=person['slug'])
+
+def editLink(name):
+    person = santa_db.get_person_by_name(dbFile, name)
+    return '{site}/edit/{token}'.format(site=siteUrl.rstrip('/'), token=person['edit_token'])
+
 def createEmails(assignments):
     mail = Mail()
     for assignment in assignments:
         senderName = names[assignment[0]]
         senderEmail = emails[assignment[0]]
         recieverName = names[assignment[1]]
+        ideaLines = ""
+        if ideaListsEnabled():
+            ideaLines = """Need some inspiration? Here is {reciever}'s gift idea list:
+        {view}\n
+        And don't forget to keep your own list up to date (keep this link private!):
+        {edit}\n
+        """.format(reciever=recieverName, view=viewLink(recieverName), edit=editLink(senderName))
         body = """HO-HO-HO MERRY CHRISTMAS {sender}!!!!!!\n
         I am emailing you to let you know that this year you get to give a gift to {reciever}!!!!!\n
-        Remember to keep this a secret to make it a surprise!\n
+        {ideaLines}Remember to keep this a secret to make it a surprise!\n
         With lots of love:
-        \tSanta's helper program""".format(sender=senderName.upper(), reciever=recieverName.upper())
-        debug.write(senderName + " -> " + recieverName + '\n')    
+        \tSanta's helper program""".format(sender=senderName.upper(), reciever=recieverName.upper(), ideaLines=ideaLines)
+        debug.write(senderName + " -> " + recieverName + '\n')
         mail.send(senderEmail, body)
     return
 
-def main():
-    initializeList()
+def sendInvites():
+    mail = Mail()
+    for name, email in zip(names, emails):
+        body = """HO-HO-HO {name}!!!!!!\n
+        It's almost time for the gift exchange! This year everyone gets a gift idea list.\n
+        Use this private link to add things you'd like for Christmas. You can add a link to a
+        specific item, or just a title and a description. Don't share this link, it lets anyone edit your list:
+        {edit}\n
+        This is what your Secret Santa will see:
+        {view}\n
+        Names will be drawn soon, so get your list in!\n
+        With lots of love:
+        \tSanta's helper program""".format(name=name.upper(), edit=editLink(name), view=viewLink(name))
+        mail.send(email, body, subject="Make your Christmas gift idea list!")
+    return
+
+def printLinks():
+    for name in names:
+        print(name)
+        print('  view: ' + viewLink(name))
+        print('  edit: ' + editLink(name))
+    return
+
+def draw():
     loadHistory()
     try:
         if historyFile != "":
@@ -182,16 +229,45 @@ def main():
     recordHistory(assignments)
     return
 
+def main(args):
+    initializeList()
+    if ideaListsEnabled():
+        syncIdeaLists()
+    elif args.command != "draw":
+        raise SystemExit("Set siteUrl and dbFile in santa.conf to use gift idea lists.")
+    if args.command == "draw":
+        draw()
+    elif args.command == "invite":
+        sendInvites()
+    elif args.command == "links":
+        printLinks()
+    elif args.command == "rotate":
+        try:
+            santa_db.rotate_token(dbFile, args.name)
+        except KeyError:
+            raise SystemExit("No one named " + args.name + " is in the gift exchange list.")
+        print('New edit link for ' + args.name + ': ' + editLink(args.name))
+    return
+
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=APPLICATION_NAME)
+    subparsers = parser.add_subparsers(dest="command")
+    subparsers.add_parser("draw", help="draw names and email everyone (the default)")
+    subparsers.add_parser("invite", help="email everyone the link to edit their gift idea list")
+    subparsers.add_parser("links", help="print everyone's gift idea list links without emailing")
+    rotateParser = subparsers.add_parser("rotate", help="give someone a new private edit link")
+    rotateParser.add_argument("name")
+    args = parser.parse_args()
+    args.command = args.command or "draw"
+
     config = configparser.ConfigParser()
-    config.readfp(open(r'santa.conf'))
+    config.read_file(open(r'santa.conf'))
     masterEmail = config.get('email data', 'masterEmail')
     masterPass = config.get('email data', 'masterPass')
     listFile = config.get('email data', 'listFile')
-    try:
-        historyFile = config.get('email data', 'historyFile')
-    except (configparser.NoOptionError, configparser.NoSectionError):
-        historyFile = ""
-    main()
+    historyFile = config.get('email data', 'historyFile', fallback="")
+    siteUrl = config.get('email data', 'siteUrl', fallback="")
+    dbFile = config.get('email data', 'dbFile', fallback="santa.db" if siteUrl != "" else "")
+    main(args)
     debug.close()

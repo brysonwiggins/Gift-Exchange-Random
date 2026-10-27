@@ -1,0 +1,5 @@
+<div class="item-title">
+  {% if item.url %}<a href="{{ item.url }}" target="_blank" rel="noopener noreferrer nofollow">{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+</div>
+{% if item.url %}<div class="item-url">{{ item.url }}</div>{% endif %}
+{% if item.description %}<p class="item-desc">{{ item.description }}</p>{% endif %}

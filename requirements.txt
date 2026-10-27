@@ -1,0 +1,8 @@
+# Name drawing + Gmail sending
+google-api-python-client
+oauth2client
+httplib2
+
+# Gift idea list website
+flask>=3.0
+gunicorn

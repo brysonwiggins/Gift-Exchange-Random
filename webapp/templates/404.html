@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Not found{% endblock %}
+{% block content %}
+<header>
+  <h1>Ho ho... no?</h1>
+</header>
+<p>We couldn't find that page. Double-check the link from your email.</p>
+<p><a href="{{ url_for('index') }}">See all gift lists</a></p>
+{% endblock %}

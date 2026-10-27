@@ -1,0 +1,16 @@
+# Example systemd unit for the gift idea list website.
+# Copy to /etc/systemd/system/santa-ideas.service, fix the paths/user, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now santa-ideas
+[Unit]
+Description=Santa gift idea lists
+After=network.target
+
+[Service]
+User=santa
+WorkingDirectory=/opt/Gift-Exchange-Random
+Environment=SANTA_CONF=/opt/Gift-Exchange-Random/santa.conf
+ExecStart=/opt/Gift-Exchange-Random/venv/bin/gunicorn -w 2 -b 127.0.0.1:8050 "webapp.app:create_app()"
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

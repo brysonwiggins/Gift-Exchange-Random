@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<header>
+  <h1>🎅 Gift Idea Lists</h1>
+</header>
+{% if people %}
+<ul class="items">
+  {% for person in people %}
+  <li class="item"><a class="item-title" href="{{ url_for('view', slug=person.slug) }}">{{ person.name }}</a></li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">No lists yet.</p>
+{% endif %}
+{% endblock %}

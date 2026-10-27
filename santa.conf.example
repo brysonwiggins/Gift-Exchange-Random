@@ -3,4 +3,6 @@ masterEmail = "email@domain.com"
 masterPass = "PasswordToEmail"
 listFile = exchangeList.txt
 historyFile = history.csv
-
+# Gift idea lists (optional). Leave siteUrl out to send plain draw emails like before.
+siteUrl = https://santa.wiggyserver.com
+dbFile = santa.db

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Gift Ideas{% endblock %}</title>
+  <style>
+    :root {
+      --bg: #f6f3ee; --card: #ffffff; --text: #23201c; --muted: #6b645b;
+      --red: #b3261e; --green: #1f6b45; --border: #e4ddd2;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #171512; --card: #221f1b; --text: #f1ece4; --muted: #a79f94;
+        --red: #ef6b62; --green: #5fbf8c; --border: #37322b;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 640px; margin: 0 auto; padding: 24px 16px 64px; }
+    header { border-bottom: 3px solid var(--red); margin-bottom: 20px; padding-bottom: 8px; }
+    h1 { margin: 0; font-size: 1.6rem; }
+    h2 { font-size: 1.15rem; margin: 28px 0 8px; }
+    .sub { color: var(--muted); margin: 4px 0 0; }
+    a { color: var(--green); }
+    ul.items { list-style: none; padding: 0; margin: 0; }
+    .item {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; margin-bottom: 10px;
+    }
+    .item-title { font-weight: 600; overflow-wrap: anywhere; }
+    .item-desc { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .item-url { font-size: .85rem; color: var(--muted); overflow-wrap: anywhere; }
+    .empty { color: var(--muted); font-style: italic; }
+    form.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+    label { display: block; font-weight: 600; font-size: .9rem; margin: 10px 0 4px; }
+    label:first-child { margin-top: 0; }
+    .opt { font-weight: 400; color: var(--muted); }
+    input[type=text], textarea {
+      width: 100%; padding: 9px 10px; font: inherit; color: var(--text);
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    }
+    textarea { min-height: 70px; resize: vertical; }
+    button {
+      font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 9px 16px;
+      background: var(--green); color: #fff; cursor: pointer; margin-top: 12px;
+    }
+    button.link { background: none; color: var(--muted); padding: 4px 0; margin: 0 12px 0 0; font-weight: 400; text-decoration: underline; }
+    button.danger { color: var(--red); }
+    .actions { margin-top: 6px; }
+    details > summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+    .error { background: var(--red); color: #fff; padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; }
+    .note { background: var(--card); border-left: 4px solid var(--green); padding: 10px 14px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

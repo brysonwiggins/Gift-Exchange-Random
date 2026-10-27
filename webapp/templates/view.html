@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ person.name }}'s Gift Ideas{% endblock %}
+{% block content %}
+<header>
+  <h1>🎁 {{ person.name }}'s Gift Ideas</h1>
+</header>
+{% if items %}
+<ul class="items">
+  {% for item in items %}
+  <li class="item">{% include "_item.html" %}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="empty">{{ person.name }} hasn't added any ideas yet. Check back later!</p>
+{% endif %}
+{% endblock %}

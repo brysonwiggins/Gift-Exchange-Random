@@ -132,3 +132,7 @@ dmypy.json
 *.conf
 *.txt
 credentials.json
+
+#idea list database
+*.db
+!requirements.txt
