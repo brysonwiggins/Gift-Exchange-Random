@@ -65,7 +65,26 @@ The website is a small Flask app in `webapp/`. Run it with gunicorn from the rep
 SANTA_CONF=/path/to/santa.conf gunicorn -w 2 -b 127.0.0.1:8050 "webapp.app:create_app()"
 ```
 
-`deploy/santa-ideas.service` is an example systemd unit. Point your reverse proxy at it.
+`deploy/santa-ideas.service` is the systemd unit. Point your reverse proxy at it.
+
+#### On the devbox (santa.wiggyserver.com)
+
+The site runs from `/opt/projects/gift-exchange` as the `santa` user, using the `santa-ideas` systemd
+service on port 8050. Nginx Proxy Manager forwards `santa.wiggyserver.com` to `192.168.68.53:8050`.
+
+Update to the latest code:
+```
+cd /opt/projects/gift-exchange && runuser -u santa -- git pull && venv/bin/pip install -q -r requirements.txt && systemctl restart santa-ideas
+```
+
+Run the script as `santa`, from that folder, so it uses the same `santa.db` as the website:
+```
+cd /opt/projects/gift-exchange
+runuser -u santa -- env HOME=$PWD venv/bin/python santa-helper-program.py links
+```
+
+Gmail login can't happen on the devbox, because it has no browser. Run the script once on a computer with a browser to log in.
+Then copy `~/.credentials/gmail-python-email-send.json` to `/opt/projects/gift-exchange/.credentials/` on the devbox.
 
 Caddy:
 ```

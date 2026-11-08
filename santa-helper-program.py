@@ -73,7 +73,8 @@ class Mail:
         if not credentials or credentials.invalid:
             flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
             flow.user_agent = APPLICATION_NAME
-            credentials = tools.run_flow(flow, store)
+            # Pass empty flags so oauth2client doesn't try to parse our subcommands from sys.argv
+            credentials = tools.run_flow(flow, store, tools.argparser.parse_args([]))
             print('Storing credentials to ' + credential_path)
         return credentials
 

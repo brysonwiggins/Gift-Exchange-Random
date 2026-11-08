@@ -1,16 +1,21 @@
-# Example systemd unit for the gift idea list website.
-# Copy to /etc/systemd/system/santa-ideas.service, fix the paths/user, then:
-#   sudo systemctl daemon-reload && sudo systemctl enable --now santa-ideas
+# systemd unit for the gift idea list website, as deployed on the devbox LXC.
+# Install: cp deploy/santa-ideas.service /etc/systemd/system/
+#          systemctl daemon-reload && systemctl enable --now santa-ideas
+# Binds 0.0.0.0 because Nginx Proxy Manager runs on a different LXC.
 [Unit]
 Description=Santa gift idea lists
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 User=santa
-WorkingDirectory=/opt/Gift-Exchange-Random
-Environment=SANTA_CONF=/opt/Gift-Exchange-Random/santa.conf
-ExecStart=/opt/Gift-Exchange-Random/venv/bin/gunicorn -w 2 -b 127.0.0.1:8050 "webapp.app:create_app()"
+Group=santa
+WorkingDirectory=/opt/projects/gift-exchange
+Environment=SANTA_CONF=/opt/projects/gift-exchange/santa.conf
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/projects/gift-exchange/venv/bin/gunicorn -w 2 -b 0.0.0.0:8050 "webapp.app:create_app()"
 Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
