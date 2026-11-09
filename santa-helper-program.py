@@ -305,7 +305,8 @@ def draw():
 
 def login():
     Mail().get_credentials()
-    print('Gmail login OK. Token is saved in ' + os.path.join(os.path.expanduser('~'), '.credentials'))
+    tokenFile = os.path.join(os.path.expanduser('~'), '.credentials', 'gmail-python-email-send.json')
+    print('Gmail login OK. Token file: ' + tokenFile)
 
 def main(args):
     if args.command == "login":
