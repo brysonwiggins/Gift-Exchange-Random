@@ -1,6 +1,7 @@
 import configparser
 import httplib2
 import os
+import sys
 import oauth2client
 from oauth2client import client, tools, file
 import base64
@@ -71,7 +72,18 @@ class Mail:
                                     'gmail-python-email-send.json')
         store = oauth2client.file.Storage(credential_path)
         credentials = store.get()
+        if credentials and not credentials.invalid and credentials.access_token_expired:
+            # A saved token can be revoked by Google (e.g. unused for months), so check it still works
+            try:
+                credentials.refresh(httplib2.Http())
+            except client.HttpAccessTokenRefreshError:
+                print('The saved Gmail login has expired or was revoked, so you need to sign in again.')
+                credentials = None
         if not credentials or credentials.invalid:
+            if sys.platform.startswith('linux') and not os.environ.get('DISPLAY'):
+                # No browser here (e.g. the server), so the sign-in would hang waiting for one
+                raise SystemExit('Gmail sign-in needed. Run "santa-helper-program.py login" on a computer with a browser, '
+                                 'then copy ' + credential_path + ' to this machine.')
             flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
             flow.user_agent = APPLICATION_NAME
             # Pass empty flags so oauth2client doesn't try to parse our subcommands from sys.argv
@@ -282,6 +294,9 @@ def main(args):
     if args.command == "login":
         login()
         return
+    if args.command in ("draw", "invite"):
+        # Make sure Gmail works before drawing, so we never stop halfway through sending
+        Mail().get_credentials()
     initializeList()
     if ideaListsEnabled():
         syncIdeaLists()

@@ -24,6 +24,7 @@ def santa(tmp_path, monkeypatch):
     module.dbFile = str(tmp_path / 'santa.db')
 
     sent = []
+    monkeypatch.setattr(module.Mail, 'get_credentials', lambda self: None)
     monkeypatch.setattr(module.Mail, 'send', lambda self, email, body, subject=None: sent.append((email, subject, body)))
     yield module, sent, tmp_path
     module.debug.close()
