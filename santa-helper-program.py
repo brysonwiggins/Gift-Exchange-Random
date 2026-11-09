@@ -26,6 +26,7 @@ listFile = ""
 historyFile = ""
 siteUrl = ""
 dbFile = ""
+confirmation = False
 names = []
 emails = []
 historyCounts = Counter()
@@ -172,8 +173,8 @@ def editLink(name):
     person = santa_db.get_person_by_name(dbFile, name)
     return '{site}/edit/{token}'.format(site=siteUrl.rstrip('/'), token=person['edit_token'])
 
-def createEmails(assignments):
-    mail = Mail()
+def buildDrawEmails(assignments):
+    messages = []
     for assignment in assignments:
         senderName = names[assignment[0]]
         senderEmail = emails[assignment[0]]
@@ -190,12 +191,11 @@ def createEmails(assignments):
         {ideaLines}Remember to keep this a secret to make it a surprise!\n
         With lots of love:
         \tSanta's helper program""".format(sender=senderName.upper(), reciever=recieverName.upper(), ideaLines=ideaLines)
-        debug.write(senderName + " -> " + recieverName + '\n')
-        mail.send(senderEmail, body)
-    return
+        messages.append((senderEmail, None, body))
+    return messages
 
-def sendInvites():
-    mail = Mail()
+def buildInviteEmails():
+    messages = []
     for name, email in zip(names, emails):
         body = """HO-HO-HO {name}!!!!!!\n
         It's almost time for the gift exchange! This year everyone gets a gift idea list.\n
@@ -207,7 +207,43 @@ def sendInvites():
         Names will be drawn soon, so get your list in!\n
         With lots of love:
         \tSanta's helper program""".format(name=name.upper(), edit=editLink(name), view=viewLink(name))
-        mail.send(email, body, subject="Make your Christmas gift idea list!")
+        messages.append((email, "Make your Christmas gift idea list!", body))
+    return messages
+
+def sendEmails(messages):
+    mail = Mail()
+    failed = []
+    for email, subject, body in messages:
+        if mail.send(email, body, subject) == "Error":
+            failed.append(email)
+    if failed:
+        print('These emails FAILED to send: ' + ', '.join(failed))
+    return failed
+
+def confirmSend(messages, summary, action):
+    """With --confirmation, show everything and ask before sending. Returns True to go ahead."""
+    if not confirmation:
+        return True
+    for email, subject, body in messages:
+        print('=' * 60)
+        print('To: ' + email)
+        print('Subject: ' + (subject or Mail().subject))
+        print(body)
+    print('=' * 60)
+    for line in summary:
+        print(line)
+    answer = input('\n{action}? [y/N] '.format(action=action))
+    if answer.strip().lower() in ('y', 'yes'):
+        return True
+    print('Aborted: no emails sent, history unchanged.')
+    return False
+
+def sendInvites():
+    messages = buildInviteEmails()
+    if not confirmSend(messages, ['{n} invites ready.'.format(n=messages.__len__())],
+                       'Send {n} invite emails'.format(n=messages.__len__())):
+        return
+    sendEmails(messages)
     return
 
 def printLinks():
@@ -226,11 +262,26 @@ def draw():
             assignments = selectNames(names.__len__())
     except RuntimeError:
         assignments = selectNames(names.__len__())
-    createEmails(assignments)
+    messages = buildDrawEmails(assignments)
+    pairings = [names[giver] + " -> " + names[recipient] for giver, recipient in assignments]
+    if not confirmSend(messages, ['Draw results:'] + ['  ' + pairing for pairing in pairings],
+                       'Send {n} emails and record history'.format(n=messages.__len__())):
+        return
+    for pairing in pairings:
+        debug.write(pairing + '\n')
+    sendEmails(messages)
+    # Recorded even if some emails failed: those people were still assigned
     recordHistory(assignments)
     return
 
+def login():
+    Mail().get_credentials()
+    print('Gmail login OK. Token is saved in ' + os.path.join(os.path.expanduser('~'), '.credentials'))
+
 def main(args):
+    if args.command == "login":
+        login()
+        return
     initializeList()
     if ideaListsEnabled():
         syncIdeaLists()
@@ -253,14 +304,18 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=APPLICATION_NAME)
+    parser.add_argument("--confirmation", action="store_true",
+                        help="show the results and emails, then ask before sending anything or recording history")
     subparsers = parser.add_subparsers(dest="command")
     subparsers.add_parser("draw", help="draw names and email everyone (the default)")
     subparsers.add_parser("invite", help="email everyone the link to edit their gift idea list")
     subparsers.add_parser("links", help="print everyone's gift idea list links without emailing")
     rotateParser = subparsers.add_parser("rotate", help="give someone a new private edit link")
     rotateParser.add_argument("name")
+    subparsers.add_parser("login", help="sign in to Gmail (opens a browser) and save the token")
     args = parser.parse_args()
     args.command = args.command or "draw"
+    confirmation = args.confirmation
 
     config = configparser.ConfigParser()
     config.read_file(open(r'santa.conf'))

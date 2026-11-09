@@ -53,7 +53,24 @@ Other commands:
 ```
 python santa-helper-program.py links          # print everyone's view/edit links, no emails
 python santa-helper-program.py rotate "Name"  # new edit link for someone (old one stops working)
+python santa-helper-program.py login          # sign in to Gmail and save the token (opens a browser)
 ```
+
+### Checking before anything is sent
+
+Put `--confirmation` before the command, for example:
+
+```
+python santa-helper-program.py --confirmation draw
+python santa-helper-program.py --confirmation invite
+```
+
+The draw happens as usual, but before anything is sent the script prints every email and the full list of who drew whom.
+Then it asks whether to continue:
+- Answer `y` to send exactly those emails and record the pairings in the history file.
+- Answer anything else to abort. Nothing is sent and the history isn't touched.
+
+You will see everyone's pairings, including your own.
 
 New names in `exchangeList.txt` get their links automatically. Existing people keep the same links every year.
 
