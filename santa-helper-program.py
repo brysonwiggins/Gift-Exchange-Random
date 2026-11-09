@@ -27,6 +27,7 @@ listFile = ""
 historyFile = ""
 siteUrl = ""
 dbFile = ""
+family = ""
 confirmation = False
 names = []
 emails = []
@@ -175,7 +176,17 @@ def ideaListsEnabled():
     return siteUrl != "" and dbFile != ""
 
 def syncIdeaLists():
-    santa_db.sync_people(dbFile, names, emails)
+    santa_db.sync_people(dbFile, names, emails, family or None)
+
+def familyLink():
+    return '{site}/ideas/{slug}'.format(site=siteUrl.rstrip('/'), slug=santa_db.slugify(family))
+
+def familyLine():
+    if family == "":
+        return ""
+    return """You can see everyone's lists here:
+        {link}\n
+        """.format(link=familyLink())
 
 def viewLink(name):
     person = santa_db.get_person_by_name(dbFile, name)
@@ -197,7 +208,8 @@ def buildDrawEmails(assignments):
         {view}\n
         And don't forget to keep your own list up to date (keep this link private!):
         {edit}\n
-        """.format(reciever=recieverName, view=viewLink(recieverName), edit=editLink(senderName))
+        {familyLine}""".format(reciever=recieverName, view=viewLink(recieverName), edit=editLink(senderName),
+                               familyLine=familyLine())
         body = """HO-HO-HO MERRY CHRISTMAS {sender}!!!!!!\n
         I am emailing you to let you know that this year you get to give a gift to {reciever}!!!!!\n
         {ideaLines}Remember to keep this a secret to make it a surprise!\n
@@ -216,9 +228,10 @@ def buildInviteEmails():
         {edit}\n
         This is what your Secret Santa will see:
         {view}\n
-        Names will be drawn soon, so get your list in!\n
+        {familyLine}Names will be drawn soon, so get your list in!\n
         With lots of love:
-        \tSanta's helper program""".format(name=name.upper(), edit=editLink(name), view=viewLink(name))
+        \tSanta's helper program""".format(name=name.upper(), edit=editLink(name), view=viewLink(name),
+                                            familyLine=familyLine())
         messages.append((email, "Make your Christmas gift idea list!", body))
     return messages
 
@@ -242,6 +255,8 @@ def confirmSend(messages, summary, action):
         print('Subject: ' + (subject or Mail().subject))
         print(body)
     print('=' * 60)
+    print('Family: {family}   List: {listFile}   History: {historyFile}'.format(
+        family=family or '(none)', listFile=listFile, historyFile=historyFile or '(none)'))
     for line in summary:
         print(line)
     answer = input('\n{action}? [y/N] '.format(action=action))
@@ -259,6 +274,8 @@ def sendInvites():
     return
 
 def printLinks():
+    if family != "":
+        print('Family page: ' + familyLink())
     for name in names:
         print(name)
         print('  view: ' + viewLink(name))
@@ -319,6 +336,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=APPLICATION_NAME)
+    parser.add_argument("--family",
+                        help="use FAMILY.list and FAMILY.history, and put everyone on the FAMILY page")
     parser.add_argument("--confirmation", action="store_true",
                         help="show the results and emails, then ask before sending anything or recording history")
     subparsers = parser.add_subparsers(dest="command")
@@ -340,5 +359,12 @@ if __name__ == "__main__":
     historyFile = config.get('email data', 'historyFile', fallback="")
     siteUrl = config.get('email data', 'siteUrl', fallback="")
     dbFile = config.get('email data', 'dbFile', fallback="santa.db" if siteUrl != "" else "")
+    family = config.get('email data', 'family', fallback="")
+    if args.family:
+        family = args.family
+        listFile = family + '.list'
+        historyFile = family + '.history'
+        if not os.path.exists(listFile):
+            raise SystemExit("Can't find " + listFile + " for the " + family + " family.")
     main(args)
     debug.close()

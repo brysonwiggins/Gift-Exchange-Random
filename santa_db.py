@@ -26,6 +26,11 @@ CREATE TABLE IF NOT EXISTS items (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS items_person ON items(person_id);
+CREATE TABLE IF NOT EXISTS memberships (
+    person_id INTEGER NOT NULL REFERENCES people(id) ON DELETE CASCADE,
+    family TEXT NOT NULL,
+    PRIMARY KEY (person_id, family)
+);
 """
 
 
@@ -50,30 +55,47 @@ def slugify(name):
     return slug or 'person'
 
 
-def uniqueSlug(conn, name):
+def familySlugs(conn):
+    return {slugify(row['family']) for row in conn.execute('SELECT DISTINCT family FROM memberships')}
+
+
+def uniqueSlug(conn, name, reserved=()):
+    """A slug for a new person that isn't taken by another person or a family page."""
+    reserved = familySlugs(conn) | set(reserved)
     base = slugify(name)
     slug = base
     suffix = 2
-    while conn.execute('SELECT 1 FROM people WHERE slug = ?', (slug,)).fetchone():
+    while slug in reserved or conn.execute('SELECT 1 FROM people WHERE slug = ?', (slug,)).fetchone():
         slug = '{base}-{n}'.format(base=base, n=suffix)
         suffix += 1
     return slug
 
 
-def sync_people(path, names, emails):
+def sync_people(path, names, emails, family=None):
     """Make sure everyone in the exchange list has a row, a slug and an edit token.
 
     Existing people keep their slug and token so links stay the same every year.
+    With a family, that family's members are replaced by exactly this list
+    (people removed from it keep their own list, they just leave the family page).
     """
     init_db(path)
     with closing(connect(path)) as conn, conn:
+        reserved = {slugify(family)} if family else set()
+        personIds = []
         for name, email in zip(names, emails):
             row = conn.execute('SELECT id, email FROM people WHERE name = ?', (name,)).fetchone()
             if row is None:
-                conn.execute('INSERT INTO people (name, slug, email, edit_token) VALUES (?, ?, ?, ?)',
-                             (name, uniqueSlug(conn, name), email, newToken()))
-            elif row['email'] != email:
-                conn.execute('UPDATE people SET email = ? WHERE id = ?', (email, row['id']))
+                cursor = conn.execute('INSERT INTO people (name, slug, email, edit_token) VALUES (?, ?, ?, ?)',
+                                      (name, uniqueSlug(conn, name, reserved), email, newToken()))
+                personIds.append(cursor.lastrowid)
+            else:
+                if row['email'] != email:
+                    conn.execute('UPDATE people SET email = ? WHERE id = ?', (email, row['id']))
+                personIds.append(row['id'])
+        if family:
+            conn.execute('DELETE FROM memberships WHERE family = ?', (family,))
+            conn.executemany('INSERT OR IGNORE INTO memberships (person_id, family) VALUES (?, ?)',
+                             [(personId, family) for personId in personIds])
 
 
 def rotate_token(path, name):
@@ -101,6 +123,24 @@ def get_person_by_token(path, token):
 
 def get_person_by_name(path, name):
     return _one(path, 'SELECT * FROM people WHERE name = ?', (name,))
+
+
+def get_family(path, slug):
+    """The family whose page lives at this slug, or None."""
+    with closing(connect(path)) as conn:
+        for row in conn.execute('SELECT DISTINCT family FROM memberships'):
+            if slugify(row['family']) == slug:
+                return row['family']
+    return None
+
+
+def list_family_members(path, family):
+    with closing(connect(path)) as conn:
+        rows = conn.execute(
+            'SELECT people.*, (SELECT COUNT(*) FROM items WHERE items.person_id = people.id) AS item_count '
+            'FROM people JOIN memberships ON memberships.person_id = people.id '
+            'WHERE memberships.family = ? ORDER BY people.name COLLATE NOCASE', (family,))
+        return [dict(row) for row in rows]
 
 
 def list_people(path):

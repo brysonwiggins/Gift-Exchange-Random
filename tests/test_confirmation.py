@@ -76,3 +76,12 @@ def test_without_confirmation_sends_immediately(santa, monkeypatch):
     monkeypatch.setattr('builtins.input', lambda prompt: pytest.fail('should not prompt'))
     module.main(SimpleNamespace(command='draw'))
     assert len(sent) == 3
+
+
+def test_family_link_in_emails(santa, monkeypatch):
+    module, sent, tmp_path = santa
+    module.family = 'wiggins'
+    run(module, monkeypatch, 'invite', 'y')
+    assert all('https://santa.example.com/ideas/wiggins' in body for email, subject, body in sent)
+    import santa_db
+    assert [p['name'] for p in santa_db.list_family_members(module.dbFile, 'wiggins')] == ['Alice', 'Bob', 'Carol']

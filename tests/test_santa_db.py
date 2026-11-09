@@ -55,3 +55,28 @@ def test_items_scoped_to_owner(db):
     assert santa_db.update_item(db, bob['id'], itemId, 'Wool socks', 'https://x.com', 'Size L')
     assert santa_db.delete_item(db, bob['id'], itemId)
     assert santa_db.list_items(db, bob['id']) == []
+
+
+def test_family_memberships(tmp_path):
+    path = str(tmp_path / 'santa.db')
+    santa_db.sync_people(path, ['Bryson', 'Ashlee', 'Winnie'], ['b@x', 'a@x', 'w@x'], 'wiggins')
+    santa_db.sync_people(path, ['Bryson', 'Ashlee', 'Luke'], ['b@x', 'a@x', 'l@x'], 'stevens')
+    assert [p['name'] for p in santa_db.list_family_members(path, 'wiggins')] == ['Ashlee', 'Bryson', 'Winnie']
+    assert [p['name'] for p in santa_db.list_family_members(path, 'stevens')] == ['Ashlee', 'Bryson', 'Luke']
+    assert santa_db.get_family(path, 'wiggins') == 'wiggins'
+    assert santa_db.get_family(path, 'bryson') is None
+
+    # Winnie leaves the Wiggins list: off the family page, but keeps her own list
+    santa_db.sync_people(path, ['Bryson', 'Ashlee'], ['b@x', 'a@x'], 'wiggins')
+    assert [p['name'] for p in santa_db.list_family_members(path, 'wiggins')] == ['Ashlee', 'Bryson']
+    assert santa_db.get_person_by_name(path, 'Winnie') is not None
+    assert [p['name'] for p in santa_db.list_family_members(path, 'stevens')] == ['Ashlee', 'Bryson', 'Luke']
+
+
+def test_person_cannot_take_family_slug(tmp_path):
+    path = str(tmp_path / 'santa.db')
+    santa_db.sync_people(path, ['Stevens'], ['s@x'], 'stevens')
+    assert santa_db.get_person_by_name(path, 'Stevens')['slug'] == 'stevens-2'
+    santa_db.sync_people(path, ['Luke'], ['l@x'], 'wiggins')
+    santa_db.sync_people(path, ['Wiggins'], ['w@x'], 'stevens')
+    assert santa_db.get_person_by_name(path, 'Wiggins')['slug'] == 'wiggins-2'

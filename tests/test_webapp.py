@@ -78,3 +78,25 @@ def test_not_found(setup):
     assert client.get('/ideas/nobody').status_code == 404
     assert client.get('/edit/not-a-token').status_code == 404
     assert client.post('/edit/not-a-token/add', data={'title': 'x'}).status_code == 404
+
+
+def test_no_overview_pages(setup):
+    path, client, alice, bob = setup
+    assert client.get('/').status_code == 404
+    assert client.get('/ideas/').status_code == 404
+
+
+def test_family_page(tmp_path):
+    path = str(tmp_path / 'santa.db')
+    santa_db.sync_people(path, ['Alice', 'Bob'], ['a@x.com', 'b@x.com'], 'wiggins')
+    santa_db.sync_people(path, ['Alice', 'Carol'], ['a@x.com', 'c@x.com'], 'stevens')
+    santa_db.add_item(path, santa_db.get_person_by_name(path, 'Alice')['id'], 'Socks')
+    client = create_app(path).test_client()
+    page = client.get('/ideas/wiggins').get_data(as_text=True)
+    assert 'Wiggins Family' in page
+    assert 'href="/ideas/alice"' in page and 'href="/ideas/bob"' in page
+    assert 'Carol' not in page
+    assert '1 idea' in page
+    assert '/edit/' not in page
+    assert 'Carol' in client.get('/ideas/stevens').get_data(as_text=True)
+    assert client.get('/ideas/alice').status_code == 200

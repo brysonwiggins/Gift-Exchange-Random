@@ -85,16 +85,14 @@ def create_app(dbPath=None):
         response.headers['X-Frame-Options'] = 'DENY'
         return response
 
-    @app.route('/')
-    def home():
-        return redirect(url_for('index'))
-
-    @app.route('/ideas/')
-    def index():
-        return render_template('index.html', people=santa_db.list_people(db()))
-
+    # There is deliberately no page listing everyone or every family:
+    # lists are only reachable from the links people are sent.
     @app.route('/ideas/<slug>')
     def view(slug):
+        family = santa_db.get_family(db(), slug)
+        if family is not None:
+            return render_template('family.html', family=family,
+                                   members=santa_db.list_family_members(db(), family))
         person = santa_db.get_person_by_slug(db(), slug)
         if person is None:
             abort(404)

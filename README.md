@@ -26,7 +26,9 @@ Each person can keep a Christmas list on the website (for example `https://santa
 
 - `/ideas/<name>` is a person's **public, read-only** list. When names are drawn, the giver's email links to their recipient's list.
 - `/edit/<secret>` is a person's **private** link for adding, editing and removing items. An item is a title plus an optional link and description. Only someone with the link can change the list.
-- `/ideas/` lists everyone.
+- `/ideas/<family>` (for example `/ideas/wiggins`) lists everyone in that family, with links to their lists.
+  Someone can be in more than one family.
+- There is no page that lists everyone or every family. `/` and `/ideas/` show "not found".
 
 Lists carry over from year to year, and people remove old items themselves.
 
@@ -40,6 +42,19 @@ Lists carry over from year to year, and people remove old items themselves.
    ```
    `dbFile` is a SQLite database. The script and the website must use the same file.
    If `siteUrl` is not set, the draw emails go out exactly as before, with no list links.
+
+### Families
+
+If you run the exchange for more than one group, give each family its own files: `wiggins.list` + `wiggins.history`, `stevens.list` + `stevens.history`, and so on.
+Then put `--family` before the command instead of renaming files:
+
+```
+python santa-helper-program.py --family wiggins --confirmation invite
+python santa-helper-program.py --family stevens --confirmation draw
+```
+
+This also adds everyone in that list to the family's page and puts the family page link in the emails.
+Without `--family`, the script uses `listFile` and `historyFile` from `santa.conf` as before.
 
 ### Each year
 
